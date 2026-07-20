@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Emulsion — collaborative storyboard blocking</title>
+<style>
+  :root { --bg:#15171c; --panel:#1f232bcc; --line:#333945; --fg:#d7dbe2; --dim:#8b93a1; --acc:#e0a458; }
+  * { box-sizing:border-box; margin:0; }
+  html,body { height:100%; overflow:hidden; background:var(--bg); color:var(--fg);
+    font:13px/1.4 ui-sans-serif, system-ui, sans-serif; }
+  canvas#view { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .panel { position:fixed; background:var(--panel); border:1px solid var(--line);
+    border-radius:8px; padding:8px; backdrop-filter:blur(6px); }
+  #topbar { top:10px; left:10px; right:10px; display:flex; gap:6px; align-items:center; }
+  #topbar .title { font-weight:600; margin-right:8px; color:var(--acc); }
+  #tools { top:64px; left:10px; display:flex; flex-direction:column; gap:6px; width:110px; }
+  #timeline { left:10px; right:10px; bottom:10px; display:flex; flex-direction:column; gap:6px; }
+  #timerow { display:flex; gap:8px; align-items:center; }
+  #scrub { flex:1; accent-color:var(--acc); }
+  #markers { position:relative; height:18px; background:#14161b; border-radius:4px; overflow:hidden; }
+  .mk { position:absolute; top:2px; width:7px; height:6px; border-radius:2px; cursor:pointer; transform:translateX(-3px); }
+  .mk.cam { background:#6d9dc5; }
+  .mk.obj { top:10px; background:var(--acc); }
+  button, input, select { background:#2a2f3a; color:var(--fg); border:1px solid var(--line);
+    border-radius:6px; padding:5px 9px; font:inherit; cursor:pointer; }
+  button:hover { border-color:#59617050; background:#333947; }
+  button.rec { color:#ff6b6b; }
+  input[type=number] { width:56px; cursor:text; }
+  input[type=range] { padding:0; border:0; background:transparent; }
+  label { color:var(--dim); display:flex; gap:5px; align-items:center; }
+  .sp { flex:1; }
+  #hint { position:fixed; left:130px; bottom:86px; color:var(--dim); font-size:12px; pointer-events:none;
+    text-shadow:0 1px 2px #000a; white-space:pre-line; }
+  #recbadge { display:none; position:fixed; top:70px; left:50%; transform:translateX(-50%);
+    background:#c0392bdd; color:#fff; padding:6px 14px; border-radius:20px; font-weight:600; }
+  #shelf { right:10px; top:64px; width:150px; max-height:55vh; overflow-y:auto; }
+  #shotList a, #setList a { display:block; color:var(--fg); font-size:12px; cursor:pointer; margin-bottom:3px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-decoration:none; }
+  #shotList a:hover, #setList a:hover { color:var(--acc); }
+  #shelf .t { color:var(--dim); font-size:11px; margin-bottom:4px; }
+  #shelfItems img { width:100%; border-radius:4px; cursor:pointer; margin-bottom:5px; display:block; }
+  #shelfItems a { display:block; color:var(--dim); font-size:11px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; margin-bottom:4px; }
+  #toast { display:none; position:fixed; bottom:110px; left:50%; transform:translateX(-50%);
+    background:var(--panel); border:1px solid var(--acc); border-radius:8px; padding:8px 16px;
+    max-width:60%; backdrop-filter:blur(6px); z-index:10; }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="topbar" class="panel">
+  <span class="title">🎞️ Emulsion</span>
+  <button id="keyObjBtn" title="Keyframe selected object at playhead (K)">◆ Key object</button>
+  <button id="keyCamBtn" title="Snap shot camera to your current view and keyframe it (C)">📷 Key camera = view</button>
+  <button id="shotBtn" title="Toggle looking through the shot camera (Tab)">Shot view</button>
+  <button id="annBtn" title="Annotation mode: click anything to copy a reference token for the chat">📍 Annotate</button>
+  <button id="lockBtn" title="Lock objects: browse and play without accidentally moving anything (L)">🔒 Lock</button>
+  <label>FOV <input id="fov" type="range" min="15" max="90" step="1" value="40" style="width:90px">
+    <span id="fovVal">40</span></label>
+  <span class="sp"></span>
+  <button onclick="window.open('/project.html')" title="Project view: all shots, sets, and assets on one big table">🗄 Project</button>
+  <button id="saveBtn">Save</button>
+  <button id="loadBtn">Load</button>
+  <input id="loadFile" type="file" accept=".json" hidden>
+  <button id="recBtn" class="rec" title="Play the shot through the storyboard camera and download an MP4 (WebM fallback)">⏺ Export video</button>
+</div>
+
+<div id="tools" class="panel">
+  <button data-add="box">＋ Box</button>
+  <button data-add="sphere">＋ Sphere</button>
+  <button data-add="cylinder">＋ Cylinder</button>
+  <button data-add="cone">＋ Cone</button>
+  <button data-add="person">＋ Person</button>
+  <button id="dupBtn" title="Duplicate selected (Ctrl+D)">Duplicate</button>
+  <button id="delBtn" title="Delete selected (Del)">Delete</button>
+</div>
+
+<div id="hint">drag object: move it · drag empty space: orbit · W/E/R gizmo: move/rotate/scale
+K: key object · C: key camera from view · L: lock objects · Tab: shot view · Space: play
+in shot view — WASD: dolly/truck · Q/E: down/up · shift: fast · drag: pan/tilt · C: key framing
+, / . : step to prev/next keyframe · markers — click: jump · alt+click: delete key</div>
+
+<div id="timeline" class="panel">
+  <div id="markers" title="blue = camera keys · orange = selected object keys"></div>
+  <div id="timerow">
+    <button id="playBtn" style="width:70px">▶ Play</button>
+    <input id="scrub" type="range" min="0" max="5" step="0.01" value="0">
+    <span id="timeLabel" style="width:110px; text-align:right; color:var(--dim)">0.00 / 5.00s</span>
+    <label>len <input id="durInput" type="number" min="1" max="60" step="1" value="5">s</label>
+  </div>
+</div>
+
+<div id="shelf" class="panel">
+  <div class="t">🎬 Shots</div>
+  <div id="shotList"></div>
+  <div style="display:flex; gap:4px; margin:4px 0 10px">
+    <input id="shotName" placeholder="shot name" style="width:92px; padding:3px 6px; font-size:11px">
+    <button id="shotSave" title="Save current layout as a shot" style="padding:3px 8px">＋</button>
+  </div>
+  <div class="t">🏞 Sets</div>
+  <div id="setList"></div>
+  <div style="display:flex; gap:4px; margin:4px 0 10px">
+    <input id="setName" placeholder="set name" style="width:92px; padding:3px 6px; font-size:11px"
+      title="Saves all static (unanimated) objects as a reusable place">
+    <button id="setSave" title="Save the static scenery as a reusable set" style="padding:3px 8px">＋</button>
+  </div>
+  <div class="t">🗂 Assets</div>
+  <div id="shelfItems"></div>
+</div>
+
+<div id="recbadge">● RECORDING</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/"
+} }
+</script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

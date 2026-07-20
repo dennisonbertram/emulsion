@@ -1,0 +1,8 @@
+.DS_Store
+*.log
+nohup.out
+/tmp/
+
+# media lives in GitHub Releases (media-v1), not in clones — keeps `skills add` fast
+assets/*
+!assets/funeral-prompt.txt
