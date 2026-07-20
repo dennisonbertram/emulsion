@@ -146,6 +146,14 @@ class Handler(BaseHTTPRequestHandler):
             state['seq'] += 1
             ops.append({'type': 'assets', 'seq': state['seq']})
             return self._json({'ok': True, 'name': name})
+        if path == '/open':
+            import subprocess
+            name = _safe_name(self._body().get('name') or '')
+            f = os.path.join(ROOT, 'assets', name)
+            if os.path.isfile(f):
+                subprocess.Popen(['open', '-R', f])  # reveal in Finder (macOS)
+                return self._json({'ok': True})
+            return self._json({'error': 'no such asset'}, 404)
         if path == '/annotations':
             ann = self._body()
             ann['at'] = time.strftime('%H:%M:%S')

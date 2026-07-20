@@ -41,7 +41,12 @@
   #shelf .t { color:var(--dim); font-size:11px; margin-bottom:4px; }
   #shelfItems img { width:100%; border-radius:4px; cursor:pointer; margin-bottom:5px; display:block; }
   #shelfItems a { display:block; color:var(--dim); font-size:11px; overflow:hidden;
-    text-overflow:ellipsis; white-space:nowrap; margin-bottom:4px; }
+    text-overflow:ellipsis; white-space:nowrap; margin-bottom:4px; flex:1; }
+  .assetRow { position:relative; margin-bottom:5px; display:flex; align-items:center; gap:4px; }
+  .assetRow img { margin-bottom:0 !important; }
+  .openBtn { position:absolute; right:2px; top:2px; padding:1px 4px; font-size:11px;
+    background:#1f232bd0; border:1px solid var(--line); border-radius:4px; }
+  .assetRow a + .openBtn { position:static; }
   #toast { display:none; position:fixed; bottom:110px; left:50%; transform:translateX(-50%);
     background:var(--panel); border:1px solid var(--acc); border-radius:8px; padding:8px 16px;
     max-width:60%; backdrop-filter:blur(6px); z-index:10; }

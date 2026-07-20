@@ -24,7 +24,10 @@
   .grid .tile { background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
   .grid img, .grid video { width:100%; display:block; aspect-ratio:16/9; object-fit:cover; cursor:pointer; }
   .grid .cap { padding:7px 10px; font-size:11.5px; color:var(--dim); overflow:hidden;
-    text-overflow:ellipsis; white-space:nowrap; }
+    text-overflow:ellipsis; white-space:nowrap; display:flex; justify-content:space-between; align-items:center; gap:6px; }
+  .grid .cap .open { background:none; border:1px solid var(--line); border-radius:4px; color:var(--fg);
+    cursor:pointer; font-size:11px; padding:1px 5px; flex-shrink:0; }
+  .grid .cap .open:hover { border-color:var(--acc); }
   .grid a.filecard { display:block; padding:16px 10px; color:var(--fg); text-decoration:none; font-size:12.5px; }
   .grid a.filecard:hover { color:var(--acc); }
   .empty { color:var(--dim); font-size:13px; }
@@ -97,13 +100,14 @@ async function loadAssets() {
   for (const f of files) {
     const tile = document.createElement('div');
     tile.className = 'tile';
+    const openBtn = `<button class="open" onclick="fetch('/open',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'${f}'})})" title="Reveal in Finder">📂</button>`;
     if (/\.(png|jpe?g|webp|gif)$/i.test(f)) {
       tile.innerHTML = `<img src="assets/${f}" loading="lazy" onclick="window.open('assets/${f}')">
-        <div class="cap">${f}</div>`;
+        <div class="cap">${f} ${openBtn}</div>`;
     } else if (/\.(mp4|webm|mov)$/i.test(f)) {
-      tile.innerHTML = `<video src="assets/${f}" controls preload="metadata"></video><div class="cap">${f}</div>`;
+      tile.innerHTML = `<video src="assets/${f}" controls preload="metadata"></video><div class="cap">${f} ${openBtn}</div>`;
     } else {
-      tile.innerHTML = `<a class="filecard" href="assets/${f}" target="_blank">📄 ${f}</a>`;
+      tile.innerHTML = `<a class="filecard" href="assets/${f}" target="_blank">📄 ${f}</a><div class="cap">${openBtn}</div>`;
     }
     el.append(tile);
   }

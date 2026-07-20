@@ -866,19 +866,28 @@ async function loadAssets() {
     const el = $('shelfItems');
     el.innerHTML = '';
     for (const f of list) {
+      const row = document.createElement('div');
+      row.className = 'assetRow';
       if (/\.(png|jpe?g|webp|gif)$/i.test(f)) {
         const img = document.createElement('img');
         img.src = 'assets/' + f;
         img.title = f;
         img.onclick = () => window.open('assets/' + f);
-        el.append(img);
+        row.append(img);
       } else {
         const a = document.createElement('a');
         a.href = 'assets/' + f;
         a.target = '_blank';
         a.textContent = f;
-        el.append(a);
+        row.append(a);
       }
+      const btn = document.createElement('button');
+      btn.className = 'openBtn';
+      btn.textContent = '📂';
+      btn.title = 'Reveal file in Finder';
+      btn.onclick = () => fetch('/open', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: f }) }).catch(() => {});
+      row.append(btn);
+      el.append(row);
     }
   } catch {}
 }
