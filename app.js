@@ -78,6 +78,20 @@ function makeMesh(kind, color) {
     };
     part(0.34, 0.5, 0.18, 0, 1.12, 0);   // torso
     part(0.22, 0.22, 0.22, 0, 1.5, 0);   // head
+    // face: eyes + hair so orientation reads and close-ups hold up
+    const eyeW = new THREE.MeshStandardMaterial({ color: 0xf5f5f0 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x16161a });
+    const eye = (x) => {
+      const w = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.02), eyeW);
+      w.position.set(x, 1.53, 0.115); g.add(w);
+      const p = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.026, 0.02), dark);
+      p.position.set(x, 1.53, 0.127); g.add(p);
+    };
+    eye(-0.055); eye(0.055);
+    const nose = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.03), mat);
+    nose.position.set(0, 1.47, 0.12); g.add(nose);
+    const hair = new THREE.Mesh(new THREE.BoxGeometry(0.235, 0.08, 0.235), dark);
+    hair.position.set(0, 1.625, -0.005); g.add(hair);
     // limbs pivot at shoulder/hip so they can swing while walking
     const limb = (x, y, len, thick) => {
       const pivot = new THREE.Group();
