@@ -40,7 +40,9 @@
 </style>
 </head>
 <body>
-<h1>🎞️ Emulsion <small>project — everything on the table</small></h1>
+<h1>🎞️ Emulsion <small>project — everything on the table</small>
+  <select id="projSel" title="Project filter" style="margin-left:14px; background:var(--panel); color:var(--fg);
+    border:1px solid var(--line); border-radius:6px; padding:4px 8px; font-size:13px;"></select></h1>
 <a class="back" href="/">🎬 Back to stage</a>
 <div id="status"></div>
 
@@ -56,6 +58,34 @@
 <script>
 const $ = (id) => document.getElementById(id);
 
+// project filter — shared selection with the stage via localStorage
+let PROJECTS = [];
+let curProject = localStorage.getItem('emulsionProject') || 'All';
+function projMatch(name) {
+  if (curProject === 'All') return true;
+  const p = PROJECTS.find((p) => p.name === curProject);
+  if (!p) return true;
+  const n = name.toLowerCase();
+  return p.prefixes.some((pre) => n.startsWith(pre));
+}
+async function loadProjects() {
+  try { PROJECTS = (await (await fetch('/projects.json')).json()).projects || []; } catch { PROJECTS = []; }
+  const sel = $('projSel');
+  sel.innerHTML = '';
+  for (const name of ['All', ...PROJECTS.map((p) => p.name)]) {
+    const o = document.createElement('option');
+    o.value = o.textContent = name;
+    sel.append(o);
+  }
+  if (![...sel.options].some((o) => o.value === curProject)) curProject = 'All';
+  sel.value = curProject;
+  sel.onchange = () => {
+    curProject = sel.value;
+    localStorage.setItem('emulsionProject', curProject);
+    refresh();
+  };
+}
+
 async function postOp(op, msg) {
   await fetch('/op', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(op) });
   $('status').textContent = msg + ' — heading to the stage…';
@@ -63,12 +93,12 @@ async function postOp(op, msg) {
 }
 
 async function loadLibrary(kind, el, actionLabel, toOp) {
-  const names = await (await fetch('/' + kind)).json();
+  const names = (await (await fetch('/' + kind)).json()).filter(projMatch);
   const details = [];
   for (const name of names) {
     details.push(await (await fetch('/' + kind + '/' + encodeURIComponent(name))).json());
   }
-  const sig = JSON.stringify(names) + details.map((d) => (d.objects || []).length).join();
+  const sig = curProject + JSON.stringify(names) + details.map((d) => (d.objects || []).length).join();
   if (el.dataset.sig === sig) return; // nothing changed — don't rebuild (rebuilds flicker)
   el.dataset.sig = sig;
   const h = $(kind + 'H');
@@ -89,10 +119,18 @@ async function loadLibrary(kind, el, actionLabel, toOp) {
   });
 }
 
+function assetRank(f) {
+  if (/\.(png|jpe?g|webp|gif)$/i.test(f)) return 0;   // images first
+  if (/\.(mp4|webm|mov)$/i.test(f)) return 1;         // then video
+  return 2;                                            // then docs / other
+}
+function orderAssets(list) {
+  return [...list].sort((a, b) => assetRank(a) - assetRank(b) || a.localeCompare(b));
+}
 async function loadAssets() {
-  const files = await (await fetch('/assets.json')).json();
+  const files = orderAssets((await (await fetch('/assets.json')).json()).filter(projMatch));
   const el = $('assets');
-  const sig = JSON.stringify(files);
+  const sig = curProject + JSON.stringify(files);
   if (el.dataset.sig === sig) return; // unchanged — keep playing videos untouched
   el.dataset.sig = sig;
   $('assetsH').textContent = '🗂 Assets (' + files.length + ')';
@@ -129,7 +167,7 @@ async function refresh() {
     $('status').textContent = 'bridge offline';
   }
 }
-refresh();
+loadProjects().then(refresh);
 setInterval(refresh, 6000);
 </script>
 </body>

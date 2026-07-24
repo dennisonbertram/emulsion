@@ -805,13 +805,45 @@ function annotateAt(e) {
   toast(`📍 ${token} — copied; paste in chat and add your note`, 6000);
 }
 
+// project filter: projects.json maps a project name → filename prefixes.
+// The selector filters shots, sets, and assets; missing file = no filtering.
+let PROJECTS = [];
+let curProject = localStorage.getItem('emulsionProject') || 'All';
+function projMatch(name) {
+  if (curProject === 'All') return true;
+  const p = PROJECTS.find((p) => p.name === curProject);
+  if (!p) return true;
+  const n = name.toLowerCase();
+  return p.prefixes.some((pre) => n.startsWith(pre));
+}
+async function loadProjects() {
+  try { PROJECTS = (await (await fetch('/projects.json')).json()).projects || []; } catch { PROJECTS = []; }
+  const sel = $('projSel');
+  if (!sel) return;
+  sel.innerHTML = '';
+  for (const name of ['All', ...PROJECTS.map((p) => p.name)]) {
+    const o = document.createElement('option');
+    o.value = o.textContent = name;
+    sel.append(o);
+  }
+  if (![...sel.options].some((o) => o.value === curProject)) curProject = 'All';
+  sel.value = curProject;
+  sel.onchange = () => {
+    curProject = sel.value;
+    localStorage.setItem('emulsionProject', curProject);
+    loadShots();
+    loadSets();
+    loadAssets();
+  };
+}
+
 // shot library: each saved layout is one shot; the collection is the storyboard
 async function loadShots() {
   try {
     const names = await (await fetch('/shots')).json();
     const el = $('shotList');
     el.innerHTML = '';
-    for (const name of names) {
+    for (const name of names.filter(projMatch)) {
       const a = document.createElement('a');
       a.textContent = '▸ ' + name;
       a.title = 'Load this shot';
@@ -844,7 +876,7 @@ async function loadSets() {
     const names = await (await fetch('/sets')).json();
     const el = $('setList');
     el.innerHTML = '';
-    for (const name of names) {
+    for (const name of names.filter(projMatch)) {
       const a = document.createElement('a');
       a.textContent = '▸ ' + name;
       a.title = 'Add this set to the current scene';
@@ -874,12 +906,20 @@ $('setSave').onclick = async () => {
 };
 
 // asset shelf: reference images & files the director drops into ./assets
+function assetRank(f) {
+  if (/\.(png|jpe?g|webp|gif)$/i.test(f)) return 0;   // images first
+  if (/\.(mp4|webm|mov)$/i.test(f)) return 1;         // then video
+  return 2;                                            // then docs / other
+}
+function orderAssets(list) {
+  return [...list].sort((a, b) => assetRank(a) - assetRank(b) || a.localeCompare(b));
+}
 async function loadAssets() {
   try {
     const list = await (await fetch('/assets.json')).json();
     const el = $('shelfItems');
     el.innerHTML = '';
-    for (const f of list) {
+    for (const f of orderAssets(list.filter(projMatch))) {
       const row = document.createElement('div');
       row.className = 'assetRow';
       if (/\.(png|jpe?g|webp|gif)$/i.test(f)) {
@@ -907,9 +947,11 @@ async function loadAssets() {
 }
 
 connectBridge();
-loadAssets();
-loadShots();
-loadSets();
+loadProjects().then(() => {
+  loadAssets();
+  loadShots();
+  loadSets();
+});
 
 window.app = { editorCam, shotCam, orbit, tc, objects, select, seek, toSpec, buildFromSpec, toggleLock }; // QA/debug handle
 
