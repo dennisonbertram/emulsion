@@ -19,9 +19,10 @@ frame a video model generated from it (right).
 ## Run it
 
 ```sh
-npx skills add dennisonbertram/emulsion     # via skills.sh
+npx skills add dennisonbertram/emulsion     # via skills.sh (needs Node)
 # or manually:
 git clone https://github.com/dennisonbertram/emulsion ~/dev/emulsion
+mkdir -p ~/.claude/skills
 ln -s ~/dev/emulsion ~/.claude/skills/emulsion
 ```
 
@@ -29,23 +30,28 @@ Then ask Claude Code something like "storyboard a chase scene for me". The agent
 starts the bridge (`python3 server.py`, port 8741), opens the app in your browser,
 and directs.
 
-To use it without an agent, run `python3 server.py` and open http://localhost:8741.
-It needs Python 3 and a browser; Node is needed only for the headless helpers.
+To use it without an agent, run `python3 server.py` from the repo directory
+(`cd ~/dev/emulsion` if you cloned it as above) and open http://localhost:8741.
+Running the app needs Python 3 and a browser; Node is needed only for the `npx`
+installer and the headless helpers.
 
 ![claude directing beside the app](docs/claude-directing.jpg)
 
 ## What you can do
 
 - **Block:** box, sphere, cylinder, cone and person objects; drag or use the gizmo
-  (`W`/`E`/`R`); non-uniform scale makes roads, walls and props.
-- **Keyframe:** `K` keys the selected object, `C` keys the camera. Shot view (`Tab`)
-  gives camera controls (dolly, boom, pan/tilt, FOV).
+  (`W`/`E`/`R`); non-uniform scale makes roads, walls and props. People walk
+  automatically when their keys move them.
+- **Keyframe:** `K` keys the selected object, `C` keys the camera. Keyed objects
+  re-key when you drag them; motion is eased by default, `linear` gives constant
+  speed. Shot view (`Tab`) gives camera controls: `WASD` dolly/truck, `Q`/`E` boom,
+  drag to pan/tilt, FOV slider. `camera.follow` auto-tracks a subject.
 - **Direct with Claude:** the agent sees your edits before its next change. Click
   **📍 Annotate**, click an object, and paste the token into chat
   (for example `@person#2 t=4.20s`).
-- **Export:** **⏺ Export video** renders the shot camera to MP4 in the asset shelf.
-  Exports are versioned.
-- **Organize:** 🎬 Shots save layouts, 🏞 Sets save scenery, 🗂 Assets collects
+- **Export:** **⏺ Export video** renders the shot camera to MP4 (WebM if the browser cannot record MP4) in the
+  asset shelf. Files are named with the shot name and a timestamp to the minute.
+- **Organize:** 🎬 Shots save layouts, 🏞 Sets save scenery (load one to stage a new shot in the same place), 🗂 Assets collects
   reference images, prompts and exports. 🔒 Lock (`L`) freezes the blocking.
 
 ![workspace](docs/workspace.png)
@@ -53,7 +59,7 @@ It needs Python 3 and a browser; Node is needed only for the headless helpers.
 ## Pipeline
 
 1. Block the scene and camera move.
-2. Export the shot camera to MP4 as the reference clip.
+2. Export the shot camera to video as the reference clip.
 3. Generate reference stills with an image model of your choice.
 4. Write a beat-by-beat prompt matching the timeline.
 5. Feed clip, stills and prompt to a video model.
